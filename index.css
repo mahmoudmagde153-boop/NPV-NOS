@@ -148,10 +148,32 @@ input:focus, select:focus {
     transition: all 0.2s;
 }
 
+.smart-option:hover {
+    background: var(--accent-blue);
+    color: white;
+}
+
+@media print {
+    :root {
+        --gold: #000000 !important;
+    }
+    
+    body, .main-header, .stat-card, .custom-controls, .data-table, .smart-option, h1, h2, h3, h4, h5, h6, span, div, td, th, label, input, button {
+        background-color: white !important;
+        color: black !important;
+        box-shadow: none !important;
+        border-color: black !important;
+    }
+    
+    button {
+        display: none !important;
+    }
+}
+
 .btn-primary {
     background: var(--gold);
     color: #000;
-    font-weight: bold;
+    border-color: var(--gold);
 }
 .btn-primary:hover { background: #d9a012; }
 

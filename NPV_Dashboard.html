@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nations of Sky - NPV System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+</head>
+<body>
+
+    <header class="main-header">
+        <h1 style="color:var(--gold); margin:0;">Nations of Sky</h1>
+        <h2 style="margin:0; font-size:1.2rem; color:var(--text)">Advanced NPV System</h2>
+    </header>
+
+    <div class="project-selector">
+        <button class="tab-btn active" onclick="setProject('Zomra')">Project Zomra</button>
+        <button class="tab-btn" onclick="setProject('Perla')">Project Perla</button>
+    </div>
+
+    <div class="dashboard-container">
+        
+        <!-- Controls Header -->
+        <div class="controls-header">
+            <div class="header-inputs">
+                <div class="input-group">
+                    <label>Base Price (EGP)</label>
+                    <input type="number" id="base-price" value="5000000" oninput="delayedCalculate()">
+                </div>
+                <div class="input-group">
+                    <label>Contract Date</label>
+                    <input type="date" id="contract-date" onchange="calculate()">
+                </div>
+                <div class="input-group">
+                    <label>Duration (Years)</label>
+                    <input type="number" id="duration-years" value="8" min="1" max="15" oninput="delayedCalculate()">
+                </div>
+                <div class="input-group">
+                    <label>Payment Frequency</label>
+                    <select id="payment-frequency" onchange="calculate()">
+                        <option value="4">Quarterly (3 Months)</option>
+                        <option value="2">Semi-Annual (6 Months)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="openRatesModal()">⚙️ Discount Rates</button>
+                <button class="btn btn-primary" onclick="exportPDF()">📄 Export PDF</button>
+                <button class="btn btn-primary" onclick="exportExcel()" style="background-color: #217346; color: white; border-color: #217346;">📊 Export Excel</button>
+                <input type="file" id="template-upload" accept=".xlsx, .xlsm" style="display:none;" onchange="handleTemplateUpload(event)">
+                <button class="btn btn-primary" onclick="document.getElementById('template-upload').click()" style="background-color: #107c41; color: white; border-color: #107c41;">📤 Export to Template</button>
+            </div>
+        </div>
+
+        <div class="panels-wrapper">
+            <!-- Custom Offer Panel (Left) -->
+            <div class="panel">
+                <div class="panel-header" style="justify-content: space-between;">
+                    <h2 style="color:var(--gold)">Custom Offer</h2>
+                    <button class="btn btn-outline" onclick="resetCustomInputs()" style="padding: 4px 10px; font-size: 0.9rem;">🔄 Reset</button>
+                </div>
+                
+                <div class="custom-controls" id="custom-inputs">
+                    <!-- Injected dynamically based on project -->
+                </div>
+                
+                <div class="custom-controls" style="margin-top: 15px;">
+                    <div class="input-group">
+                        <label>Installments Count (Override)</label>
+                        <input type="number" id="custom-inst-count" placeholder="Auto" oninput="delayedCalculate()">
+                    </div>
+                </div>
+
+                <div class="custom-controls" style="margin-top: 15px; grid-template-columns: 1fr;">
+                    <div class="input-group">
+                        <label style="color:var(--gold); display: flex; align-items: center; gap: 8px; font-size: 1rem;">
+                            <input type="checkbox" id="fixed-inst-toggle" onchange="toggleFixedInst(); delayedCalculate();" style="width: 18px; height: 18px; cursor: pointer;"> 
+                            Fix Installment Amount
+                        </label>
+                        <input type="number" id="fixed-inst-val" disabled oninput="delayedCalculate()" placeholder="Enter exact installment amount..." style="font-size: 1.1rem; padding: 12px; font-weight: bold;">
+                    </div>
+                </div>
+
+                <div class="custom-controls" style="margin-top: 10px; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem; cursor: pointer;">
+                        <input type="checkbox" id="toggle-70-30" onchange="calculate()">
+                        Apply 70%-30% Installment Shift
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem; cursor: pointer;">
+                        <input type="checkbox" id="merge-delivery-toggle" onchange="calculate()" checked>
+                        Merge Installment with Delivery
+                    </label>
+                </div>
+
+                <div class="custom-controls" style="margin-top: 15px; grid-template-columns: 1fr; background: rgba(33, 150, 243, 0.05); border-left: 4px solid var(--accent-blue); padding: 15px; border-radius: 8px;">
+                    <h3 style="margin-top: 0; margin-bottom: 10px; color: var(--accent-blue); font-size: 1.1rem;">🎯 Smart Solver (Target Price)</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end;">
+                        <div class="input-group">
+                            <label>Target Price</label>
+                            <input type="number" id="target-price-val" placeholder="e.g. 50000000" oninput="onTargetPriceChange(); delayedCalculate();">
+                        </div>
+                        <div class="input-group">
+                            <label>Discount/Inc %</label>
+                            <input type="number" step="0.01" id="target-pct-val" placeholder="e.g. -5 for 5% discount" oninput="onTargetPctChange(); delayedCalculate();">
+                        </div>
+                    </div>
+                    
+                    <div id="smart-options-container" style="margin-top: 15px; display: none;">
+                        <h4 style="margin: 0 0 10px 0; color: var(--gold); font-size: 1rem;">✨ الذكاء الاصطناعي: اختر الحل الأنسب للوصول لهذا الرقم:</h4>
+                        <div id="smart-options-list" style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+                    <div id="target-price-warning" style="color: var(--danger); font-size: 0.9rem; margin-top: 8px; font-weight: bold; display: none;"></div>
+                </div>
+
+                <div class="summary-box" style="margin-top: 15px;">
+                    <div class="summary-item">
+                        <span class="summary-label">Total Amount</span>
+                        <span class="summary-value" id="offer-total-amt" style="color:var(--accent-blue)">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Total PV</span>
+                        <span class="summary-value" id="offer-total-pv" style="color:var(--gold)">0</span>
+                    </div>
+                    <div class="summary-item" style="grid-column: 1 / -1; padding-top: 10px; border-top: 1px solid var(--border);">
+                        <span class="summary-label">Collected Pre-Delivery</span>
+                        <span class="summary-value" id="offer-pre-delivery" style="color:var(--accent-blue)">0%</span>
+                    </div>
+                </div>
+                
+                <div class="diff-box" id="pv-difference" style="margin-top: 15px;">
+                    <!-- Difference injected here -->
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+                    <button onclick="applyTableEdits()" style="background:var(--accent-blue); color:white; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">احسب بعد تعديل الجدول</button>
+                    <button onclick="resetTableEdits()" style="background:#e74c3c; color:white; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer; border:none; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">إلغاء كل التعديلات</button>
+                </div>
+
+                <div class="table-container" style="margin-top:15px; max-height:400px; overflow-y:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Payment Type</th>
+                                <th>Date</th>
+                                <th>%</th>
+                                <th>Amount (EGP)</th>
+                                <th>PV</th>
+                            </tr>
+                        </thead>
+                        <tbody id="offer-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Base Plan Panel (Right) -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 style="color:var(--gold)">Base Plan (Baseline)</h2>
+                </div>
+                
+                <div class="custom-controls" id="base-inputs" style="margin-top: 15px; background-color: #fce4d6; padding: 15px; border-radius: 8px;">
+                    <!-- Baseline settings injected dynamically -->
+                </div>
+
+                <div class="summary-box" style="margin-top: 15px;">
+                    <div class="summary-item">
+                        <span class="summary-label">Total Amount</span>
+                        <span class="summary-value" id="base-total-amt">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Total PV</span>
+                        <span class="summary-value" id="base-total-pv">0</span>
+                    </div>
+                    <div class="summary-item" style="grid-column: 1 / -1; padding-top: 10px; border-top: 1px solid var(--border);">
+                        <span class="summary-label">Collected Pre-Delivery</span>
+                        <span class="summary-value" id="base-pre-delivery" style="color:var(--accent-blue)">0%</span>
+                    </div>
+                </div>
+
+                <div class="table-container" style="margin-top:15px; max-height: 520px; overflow-y:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Payment Type</th>
+                                <th>Date</th>
+                                <th>%</th>
+                                <th>Amount</th>
+                                <th>PV</th>
+                            </tr>
+                        </thead>
+                        <tbody id="base-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Rates Modal -->
+    <div class="modal-overlay" id="rates-modal">
+        <div class="modal-content">
+            <h3 style="color:var(--gold); margin-top:0;">Discount Rates Settings</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 15px;">Modify rates per year (applies globally).</p>
+            <div id="rates-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <!-- Injected via JS -->
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-outline" onclick="closeRatesModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRates()">Save Rates</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Export Template -->
+    <div id="export-wrapper" style="position: absolute; left: -9999px; top: 0; background: white; padding: 20px; width: 800px; color: black; font-family: Calibri, Arial, sans-serif; direction: ltr;">
+        <style>
+            #export-table { width: 550px; margin: 0 auto; border-collapse: collapse; text-align: center; border: 2px solid black; font-size: 9px; line-height: 1.2; }
+            #export-table th, #export-table td { border: 1px solid black; padding: 2px; }
+            .export-header-blue { background-color: #9bc2e6 !important; font-weight: bold; }
+            .export-sub-blue { background-color: #9bc2e6 !important; font-weight: bold; }
+            .export-bold { font-weight: bold; }
+        </style>
+        <table id="export-table">
+            <!-- Generated via JS -->
+        </table>
+    </div>
+
+    <script src="app.js?v=639252434042461004"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
