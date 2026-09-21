@@ -1476,7 +1476,8 @@ async function handleTemplateUpload(event) {
                     let grpName = '';
                     if (f.months <= 1 && f.isDP) grpName = 'Down Payment';
                     else {
-                        let y = Math.floor(f.months / 12) + 1;
+                        let y = Math.ceil(f.months / 12);
+                        if (y < 1) y = 1;
                         grpName = 'Year ' + y;
                     }
                     let lastGrp = grouped[grouped.length - 1];
